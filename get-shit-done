@@ -6,6 +6,7 @@ if ( 1 == $argc ) {
 }
 
 $whoami = trim(`whoami`);
+$uname = trim(`uname`);
 
 if ( 'root' != strtolower($whoami) ) {
 	exitWithError("Please run script as root.");
@@ -31,7 +32,12 @@ if (file_exists($iniFile)) {
 	);
 }
 
-$restartNetworkingCommand = '/etc/init.d/networking restart';
+if ($uname == 'Darwin') {
+  $interface = darwinFindActiveInterface();
+  $restartNetworkingCommand = "ifconfig $interface down; ifconfig $interface up;";
+} else {
+  $restartNetworkingCommand = '/etc/init.d/networking restart';
+}
 $hostsFile = '/etc/hosts';
 $startToken = '## start-gsd';
 $endToken = '## end-gsd';
@@ -90,4 +96,14 @@ switch ( $action ) {
 function exitWithError($error) {
 	fwrite(STDERR, $error . PHP_EOL);
 	exit(1);
+}
+
+function darwinFindActiveInterface() {
+  // Wi-Fi: en1; Ethernet: en0.
+  $output = shell_exec("ifconfig en1 | grep 'status' | awk -F ': ' '{print $2}'");
+  if ($output == 'active') {
+    return 'en1';
+  } else {
+    return 'en0';
+  }
 }
